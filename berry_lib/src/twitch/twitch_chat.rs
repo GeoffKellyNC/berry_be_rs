@@ -2,25 +2,35 @@ use colored::*;
 use std::error::Error;
 use std::io::{Read, Write};
 use std::net::TcpStream;
-use actix::prelude::*;
-
+use super::message_processor::MessageProcessor;
 
 pub enum TCPMessage {
-    Ping,
-    PrivMsg(&str),
+    Ping(String),
+    PrivMsg(String),
 }
 
 /// Define message
-#[rtype(result = "Result<bool, std::io::Error>")]
-#[derive(Debug, Clone, Message)]
+#[derive(Debug, Clone)]
 pub struct ReceivedMessage {
     pub channel: String,
     pub username: String,
     pub user_id: String,
     pub message: String,
 }
+
+#[derive(Debug)]
 pub struct TwitchChatConnection {
     pub stream: Option<TcpStream>,
+}
+
+
+
+#[derive(Debug)]
+pub struct TwitchBot {
+    pub channel: String,
+    pub nickname: String,
+    pub auth_token: String,
+    pub chat_connection: TwitchChatConnection,
 }
 
 
@@ -32,7 +42,7 @@ impl TwitchChatConnection {
     pub fn connect_and_authenticate(
         &mut self,
         auth_token: &str,
-        chennel_name: &str,
+        channel_name: &str,
         nickname: &str
     ) -> Result<(), Box<dyn Error>> {
         println!("{}", "Connectin to Twitch".bright_purple());
@@ -50,74 +60,65 @@ impl TwitchChatConnection {
     
     }
 
-    pub fn listen_and_handle_messages(&mut self, channel: String) {
-        let stream = match self.stream.as_mut() {
-            Ok(stream) => stream,
-            Err(_) => {
-                println!("{}", "Error Getting Stream".red())
-            }
-        };
+    pub  fn listen_and_handle_messages(&mut self, channel: String, message_processor: MessageProcessor) {
+        println!("{} {}", "Listening for Messages in: ".bright_purple(), &channel); // !REMOVE
 
+        let stream = self.stream.as_mut().unwrap();
+        println!("{} {:?}", "Stream from listen_and_handle_messages fn".bright_magenta(), stream); // !REMOVE
         let mut buffer = Vec::new();
-
+    
         loop {
             buffer.clear();
             let mut chunk = [0; 512];
-
             match stream.read(&mut chunk) {
                 Ok(bytes_read) => {
-                    
                     if bytes_read == 0 {
-                        break
+                        break;
                     }
-
                     buffer.extend_from_slice(&chunk[..bytes_read]);
-
                     let message_string = String::from_utf8_lossy(&buffer).to_string();
-
-                    println!("{}", "Received message from Twitch:".cyan()); // !REMOVE
-                    println!("{}", message_string.yellow()); // !REMOVE
-
+                    println!("{}", "Received message from Twitch:".cyan());
+                    println!("{}", message_string.yellow());
+    
                     let messages = message_string.split("\r\n").collect::<Vec<_>>();
-
-                    let mut message_type: TCPMessage;
-                    
+    
                     for message in messages {
-                        if message.starts_with("PING") {
-                            message_type = TCPMessage::Ping;
-                            continue
-                        }
-
-                        if message.contains("PRIVMSG") {
-                            message_type = TCPMessage::PrivMsg(message);
-                            continue
-                        }
-                    }
-
-                    match message_type {
-                        TCPMessage::PrivMsg(message) => {
-                            println!("{}", "PrivMsg Recieved!".light_green());
-                            if let Some((username, user_id, msg)) = Self::parse_chat_message(message) {
-                                let recieved_message = ReceivedMessage {
-                                    channel: channle.clone(),
-                                    username,
-                                    user_id,
-                                    message: msg.to_string()
-                                };
-
-                                println!("{}", "Recieved Message from Twitch".purple();)
+                        let message_type = match message {
+                            message if message.starts_with("PING") => TCPMessage::Ping(message.to_string()),
+                            message if message.contains("PRIVMSG") => TCPMessage::PrivMsg(message.to_string()),
+                            _ => continue,
+                        };
+    
+                        match message_type {
+                            TCPMessage::Ping(message) => {
+                                let _ = Self::send_pong(stream, &message[5..]);
                             }
-                        },
-                        TCPMessage::Ping => {
-                            let _ = Self::send_pong(stream, &message[5..1]);
-                            continue
+                            TCPMessage::PrivMsg(message) => {
+                                println!("{}", "PrivMsg Received!".green());
+                                if let Some((username, user_id, msg)) = Self::parse_chat_message(&message) {
+                                    let received_message = ReceivedMessage {
+                                        channel: channel.clone(),
+                                        username,
+                                        user_id,
+                                        message: msg.to_string(),
+                                    };
+                                    println!(
+                                        "{} {:?}",
+                                        "Received Message from Twitch".purple(),
+                                        received_message
+                                    );
+
+                                    println!("Received Message from Twitch: {:?}", received_message);
+
+                                    message_processor.send_message(received_message);
+                                }
+                            }
                         }
                     }
-
                 }
                 Err(err) => {
                     eprintln!("Error Reading from stream {}", err);
-                    break
+                    break;
                 }
             }
         }
@@ -150,9 +151,16 @@ impl TwitchChatConnection {
             None
         }
     }
+
+    pub fn send_chat_message(&mut self, channel: &str, message: &str) -> Result<(), Box<dyn Error>> {
+        if let Some(ref mut stream) = self.stream {
+            let msg = format!("PRIVMSG #{} :{}\r\n", channel, message);
+            stream.write_all(msg.as_bytes())?;
+            println!("{}", "Message sent to chat".green());
+        }
+        Ok(())
+    }
 }
-
-
 
 
 

@@ -3,6 +3,7 @@ use actix_web::{http::header, middleware::Logger, web, App, HttpServer};
 use dotenv::dotenv;
 use reqwest::Client;
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
+use berry_lib::twitch::message_processor::{self, MessageProcessor};
 
 pub mod controllers;
 pub mod models;
@@ -59,6 +60,12 @@ async fn main() -> std::io::Result<()> {
         }
     };
 
+
+    let (message_processor, rx) = MessageProcessor::new();
+
+    let _ = message_processor::start_message_processing(rx);
+
+
     let server = HttpServer::new(move || {
         let cors = Cors::default()
             .allowed_origin("http://localhost:5173")
@@ -78,6 +85,7 @@ async fn main() -> std::io::Result<()> {
             .wrap(Logger::default())
             .app_data(web::Data::new(db_pool.clone()))
             .app_data(web::Data::new(reqwest_client.clone()))
+            .app_data(web::Data::new(message_processor.clone()))
             .configure(routes::auth_rotues::init_routes)
     });
 
@@ -97,3 +105,5 @@ async fn main() -> std::io::Result<()> {
             e
         })
 }
+
+

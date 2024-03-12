@@ -18,6 +18,9 @@ use berry_lib::twitch::{
 use colored::*;
 use reqwest::Client;
 use sqlx::PgPool;
+use berry_lib::twitch::message_processor::MessageProcessor;
+use berry_lib::twitch::twitch_chat::{TwitchBot, TwitchChatConnection};
+use crate::services::twitch_service;
 
 #[derive(serde::Deserialize)]
 pub struct LoginResponse {
@@ -37,6 +40,7 @@ pub async fn login_twitch(
     pool: web::Data<PgPool>,
     data: web::Json<LoginResponse>,
     reqwest_client: web::Data<Client>,
+    message_processor: web::Data<MessageProcessor>,
 ) -> ApiResponse<LoginApiRes> {
     
     println!("{}", "Login Request Received!".green()); // !REMOVE
@@ -106,6 +110,20 @@ pub async fn login_twitch(
     };
 
     // ** Initiate Bot
+
+    let mut bot = TwitchBot {
+        channel: user_data.twitch_id.to_string(),
+        nickname: "berry_bot".to_string(),
+        auth_token: twitch_creds.access_token.clone(),
+        chat_connection: TwitchChatConnection::new(),
+    };
+    
+    // Start the bot
+    twitch_service::start_bot(&mut bot, message_processor.clone());
+
+
+
+
 
 
     // ** Initiate Bot END

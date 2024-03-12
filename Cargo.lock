@@ -391,6 +391,7 @@ dependencies = [
  "chrono",
  "colored",
  "dotenv",
+ "futures",
  "jsonwebtoken",
  "lazy_static",
  "reqwest",
