@@ -18,7 +18,6 @@ use berry_lib::twitch::{
 use colored::*;
 use reqwest::Client;
 use sqlx::PgPool;
-use berry_lib::twitch::twitch_chat::{TwitchBot, TwitchChatConnection};
 use crate::services::twitch_service;
 
 #[derive(serde::Deserialize)]
@@ -107,17 +106,17 @@ pub async fn login_twitch(
         }
     };
 
-    // ** Initiate Bot
 
-    let mut bot = TwitchBot {
-        channel: user_data.twitch_id.to_string(),
-        nickname: "berry_bot".to_string(),
-        auth_token: twitch_creds.access_token.clone(),
-        chat_connection: TwitchChatConnection::new(),
-    };
-    
-    // Start the bot
-    twitch_service::start_bot(&mut bot);
+    // ** Initiate Bot
+    let channel = user_data.twitch_id.to_string();
+    let nickname = "berry_bot".to_string();
+    let auth_token = twitch_creds.access_token.clone();
+
+    tokio::spawn(async move {
+        if let Err(e) = twitch_service::start_bot(channel, nickname, auth_token).await {
+            eprintln!("Error starting bot: {}", e);
+        }
+    });
 
 
 

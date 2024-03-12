@@ -12,11 +12,7 @@ pub fn add_bot(channel: String, bot: TwitchBot) {
 }
 
 pub fn get_bot(channel: &str) -> Option<TwitchBot> {
-    match BOT_STORAGE.read().get(channel) {
-        Some(bot) => Some(bot.clone()),
-        None => None,
-    
-    }
+    BOT_STORAGE.read().get(channel).cloned()
 }
 
 pub fn remove_bot(channel: &str) {
