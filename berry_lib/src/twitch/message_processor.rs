@@ -1,43 +1,38 @@
-use std::thread;
-use std::sync::mpsc::{Sender, Receiver, channel};
 use super::twitch_chat::ReceivedMessage;
 use colored::*;
 use super::bot_storage;
 
 #[derive(Clone)]
-pub struct MessageProcessor {
-    tx: Sender<ReceivedMessage>,
-}
+pub struct MessageProcessor;
 
-impl MessageProcessor {
-    pub fn new() -> (MessageProcessor, Receiver<ReceivedMessage>) {
-        let (tx, rx) = channel();
 
-        let message_processor = MessageProcessor { tx };
+pub fn process_message(message: ReceivedMessage) {
+    let ReceivedMessage {
+        channel,
+        username,
+        user_id,
+        message,
+    } = message;
 
-        (message_processor, rx)
-    }
+    println!(
+        "{}{}{}{}{}{}",
+        "Channel: ".bright_yellow(),
+        channel,
+        " | User: ".bright_yellow(),
+        username,
+        " | Message: ".bright_yellow(),
+        message
+    );
 
-    pub fn send_message(&self, message: ReceivedMessage) {
-        self.tx.send(message).unwrap();
-    }
-}
-
-pub fn start_message_processing(rx: Receiver<ReceivedMessage>) {
-    println!("{}", "Starting Messaging Procesor".green());
-    thread::spawn(move || {
-        for message in rx {
-            process_message(message);
+    if message.starts_with("!") {
+        let command = message.split_whitespace().next().unwrap();
+        match command {
+            "!test" => {
+                println!("{}", "Test Command".bright_green());
+            }
+            _ => {
+                println!("{}", "Unknown Command".bright_red());
+            }
         }
-    });
-}
-
-fn process_message(message: ReceivedMessage) {
-    // Perform message processing logic here
-    println!("Processing message: {:?}", message);
-
-    if let Some(bot) = bot_storage::get_bot(&message.channel) {
-        let response = format!("You said: {}", message.message);
-        bot.chat_connection.send_chat_message(&message.channel, &response).unwrap();
     }
 }

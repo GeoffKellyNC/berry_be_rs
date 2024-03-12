@@ -1,25 +1,24 @@
 use std::collections::HashMap;
 use lazy_static::lazy_static;
-
+use parking_lot::RwLock;
 use super::twitch_chat::TwitchBot;
 
 lazy_static! {
-    static ref BOT_STORAGE: HashMap<String, TwitchBot> = HashMap::new();
+    static ref BOT_STORAGE: RwLock<HashMap<String, TwitchBot>> = RwLock::new(HashMap::new());
 }
 
 pub fn add_bot(channel: String, bot: TwitchBot) {
-    BOT_STORAGE.insert(channel, bot);
+    BOT_STORAGE.write().insert(channel, bot);
 }
 
-pub fn get_bot(channel: &str) -> Option<&TwitchBot> {
-   let bot = BOT_STORAGE.get(channel);
-
-    match bot {
-         Some(bot) => Some(bot),
-         None => None,
+pub fn get_bot(channel: &str) -> Option<TwitchBot> {
+    match BOT_STORAGE.read().get(channel) {
+        Some(bot) => Some(bot.clone()),
+        None => None,
+    
     }
 }
 
 pub fn remove_bot(channel: &str) {
-    let _ = BOT_STORAGE.remove(channel);
+    BOT_STORAGE.write().remove(channel);
 }

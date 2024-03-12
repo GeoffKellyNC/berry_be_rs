@@ -2,7 +2,6 @@ use colored::*;
 use std::error::Error;
 use std::io::{Read, Write};
 use std::net::TcpStream;
-use super::message_processor::MessageProcessor;
 
 pub enum TCPMessage {
     Ping(String),
@@ -18,14 +17,14 @@ pub struct ReceivedMessage {
     pub message: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TwitchChatConnection {
     pub stream: Option<TcpStream>,
 }
 
 
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TwitchBot {
     pub channel: String,
     pub nickname: String,
@@ -60,7 +59,7 @@ impl TwitchChatConnection {
     
     }
 
-    pub  fn listen_and_handle_messages(&mut self, channel: String, message_processor: MessageProcessor) {
+    pub  fn listen_and_handle_messages(&mut self, channel: String) {
         println!("{} {}", "Listening for Messages in: ".bright_purple(), &channel); // !REMOVE
 
         let stream = self.stream.as_mut().unwrap();
@@ -110,7 +109,6 @@ impl TwitchChatConnection {
 
                                     println!("Received Message from Twitch: {:?}", received_message);
 
-                                    message_processor.send_message(received_message);
                                 }
                             }
                         }
