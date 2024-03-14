@@ -1,6 +1,6 @@
 use super::twitch_chat::ReceivedMessage;
 use colored::*;
-use super::bot_storage;
+// use super::bot_storage;
 
 #[derive(Clone)]
 pub struct MessageProcessor;
@@ -10,7 +10,7 @@ pub fn process_message(message: ReceivedMessage) {
     let ReceivedMessage {
         channel,
         username,
-        user_id,
+        user_id: _,
         message,
     } = message;
 

@@ -109,7 +109,7 @@ pub async fn login_twitch(
 
     // ** Initiate Bot
 
-    let mut bot = TwitchBot {
+    let  bot = TwitchBot {
         channel: user_data.twitch_id.to_string(),
         nickname: "berry_bot".to_string(),
         auth_token: twitch_creds.access_token.clone(),
@@ -117,7 +117,7 @@ pub async fn login_twitch(
     };
     
     // Start the bot
-    twitch_service::start_bot(&mut bot);
+    twitch_service::start_bot(bot);
 
 
 

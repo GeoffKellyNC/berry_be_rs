@@ -9,7 +9,7 @@ pub enum TCPMessage {
 }
 
 /// Define message
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct ReceivedMessage {
     pub channel: String,
     pub username: String,
@@ -17,14 +17,14 @@ pub struct ReceivedMessage {
     pub message: String,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debu)]
 pub struct TwitchChatConnection {
     pub stream: Option<TcpStream>,
 }
 
 
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct TwitchBot {
     pub channel: String,
     pub nickname: String,
