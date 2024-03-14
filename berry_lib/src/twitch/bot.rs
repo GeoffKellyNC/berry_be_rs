@@ -2,6 +2,7 @@
 use super::commands::CommandHandler;
 use super::twitch_api::{TwitchAPI, TwitchMessage, TwitchError};
 use std::io::ErrorKind;
+use super::commands::CustomCommand;
 
 
 pub struct Bot<'a> {
@@ -12,7 +13,13 @@ pub struct Bot<'a> {
 impl<'a> Bot<'a> {
     pub fn new(access_token: &'a str, channel: &'a str) -> Result<Self, TwitchError> {
         let api = TwitchAPI::new(access_token, channel)?;
-        let command_handler = CommandHandler::new();
+        let custom_commands: Vec<CustomCommand> = vec![
+            CustomCommand {
+                name: "hello".to_string(),
+                response: "Hello, world!".to_string(),
+            },
+        ]; // TODO: This will be an SQL query that will get users custom commands.
+        let command_handler = CommandHandler::new(custom_commands);
         Ok(Bot { api, command_handler })
     }
 
@@ -26,7 +33,6 @@ impl<'a> Bot<'a> {
                 Ok(Some(message)) => self.handle_message(&message),
                 Ok(None) => {}
                 Err(TwitchError::IOError(ref e)) if e.kind() == ErrorKind::WouldBlock => {
-                    println!("No messages to read, sleeping..."); // !REMOVE
                     std::thread::sleep(std::time::Duration::from_millis(500));
                 }
                 Err(e) => return Err(e),

@@ -1,4 +1,3 @@
-// commands.rs
 use super::twitch_api::TwitchMessage;
 
 pub trait Command {
@@ -30,26 +29,49 @@ impl Command for TestCommand {
     }
 }
 
+pub struct CustomCommand {
+    pub name: String,
+    pub response: String,
+}
+
+impl Command for CustomCommand {
+    fn execute(&self, _message: &TwitchMessage) -> String {
+        self.response.clone()
+    }
+
+    fn get_name(&self) -> String {
+        self.name.clone()
+    }
+}
+
 pub struct CommandHandler {
-    commands: Vec<Box<dyn Command>>,
+    pub builtin_commands: Vec<Box<dyn Command>>,
+    pub custom_commands: Vec<CustomCommand>,
 }
 
 impl CommandHandler {
-    pub fn new() -> Self {
-        let commands: Vec<Box<dyn Command>> = vec![
+    pub fn new(custom_commands: Vec<CustomCommand>) -> Self {
+        let builtin_commands: Vec<Box<dyn Command>> = vec![
             Box::new(PingCommand),
             Box::new(TestCommand),
         ];
-        CommandHandler { commands }
+        CommandHandler {
+            builtin_commands,
+            custom_commands,
+        }
     }
 
-    pub fn get_command(&self, message: &str) -> Option<&dyn Command>{
+    pub fn get_command(&self, message: &str) -> Option<&dyn Command> {
         if message.starts_with('!') {
-            let command_name = &message[1..];
-            for command in &self.commands {
-                if command.get_name().to_lowercase() == command_name {
-                    println!("Found command: {}", command.get_name()); // !REMOVE
+            let command_name = &message[1..].to_lowercase();
+            for command in &self.builtin_commands {
+                if command.get_name() == command_name.to_string() {
                     return Some(command.as_ref());
+                }
+            }
+            for command in &self.custom_commands {
+                if command.get_name() == command_name.to_string() {
+                    return Some(command);
                 }
             }
         }

@@ -106,55 +106,43 @@ pub async fn login_twitch(
         }
     };
 
-    // ** Initiate Bot
+    initiate_twitch_bot(twitch_creds.access_token.clone(), user_data.twitch_id.clone());
 
- 
-    match Bot::new(&twitch_creds.access_token, &user_data.twitch_login) {
-        Ok(mut bot) => {
-            if let Err(e) = bot.run() {
-                eprintln!("Error running bot: {:?}", e);
-                return ApiResponse::new(
-                    None,
-                    Some("Error Running Bot".to_string()),
-                    Some(StatusCode::INTERNAL_SERVER_ERROR),
-                );
-            }
-            if let Err(e) = bot.disconnect() {
-                eprintln!("Error disconnecting bot: {:?}", e);
-                return ApiResponse::new(
-                    None,
-                    Some("Error Disconnecting Bot".to_string()),
-                    Some(StatusCode::INTERNAL_SERVER_ERROR),
-                );
-            }
-        }
-        Err(e) => {
-            eprintln!("Error creating bot: {:?}", e);
-            return ApiResponse::new(
-                None,
-                Some("Error Creating Bot".to_string()),
-                Some(StatusCode::INTERNAL_SERVER_ERROR),
-            );
-        }
-    }
-
-
-    // ** Initiate Bot END
 
     let jwt_token = match init_and_get_jwt(twitch_creds.access_token, &user_data).await {
         Ok(token) => token,
         Err(e) => return ApiResponse::new(None, Some(e), Some(StatusCode::INTERNAL_SERVER_ERROR)),
     };
 
+
     let full_response = LoginApiRes {
         token: jwt_token,
         data: user_data,
     };
 
+
+    println!("{}", "Login Request Completed!".green()); // !REMOVE
+    println!("{:?}", full_response); // !REMOVE
     ApiResponse::new(Some(full_response), None, Some(StatusCode::OK))
 }
 
 // ** MAIN LOGIN FUNCTION END **
+
+fn initiate_twitch_bot(token: String, channel: String) {
+    tokio::spawn(async move {
+        match Bot::new(&token, &channel) {
+            Ok(mut bot) => {
+                println!("Bot Created!"); // !REMOVE
+                if let Err(e) = bot.run() {
+                    eprintln!("Error running bot: {:?}", e);
+                }
+            }
+            Err(e) => {
+                eprintln!("Error creating bot: {:?}", e);
+            }
+        }
+    });
+}
 
 // Retrieve Twitch Creds
 
