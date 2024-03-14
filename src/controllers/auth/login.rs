@@ -18,8 +18,7 @@ use berry_lib::twitch::{
 use colored::*;
 use reqwest::Client;
 use sqlx::PgPool;
-use berry_lib::twitch::twitch_chat::{TwitchBot, TwitchChatConnection};
-use crate::services::twitch_service;
+use berry_lib::twitch::bot::Bot;
 
 #[derive(serde::Deserialize)]
 pub struct LoginResponse {
@@ -109,19 +108,35 @@ pub async fn login_twitch(
 
     // ** Initiate Bot
 
-    let  bot = TwitchBot {
-        channel: user_data.twitch_id.to_string(),
-        nickname: "berry_bot".to_string(),
-        auth_token: twitch_creds.access_token.clone(),
-        chat_connection: TwitchChatConnection::new(),
-    };
-    
-    // Start the bot
-    twitch_service::start_bot(bot);
-
-
-
-
+ 
+    match Bot::new(&twitch_creds.access_token, &user_data.twitch_login) {
+        Ok(mut bot) => {
+            if let Err(e) = bot.run() {
+                eprintln!("Error running bot: {:?}", e);
+                return ApiResponse::new(
+                    None,
+                    Some("Error Running Bot".to_string()),
+                    Some(StatusCode::INTERNAL_SERVER_ERROR),
+                );
+            }
+            if let Err(e) = bot.disconnect() {
+                eprintln!("Error disconnecting bot: {:?}", e);
+                return ApiResponse::new(
+                    None,
+                    Some("Error Disconnecting Bot".to_string()),
+                    Some(StatusCode::INTERNAL_SERVER_ERROR),
+                );
+            }
+        }
+        Err(e) => {
+            eprintln!("Error creating bot: {:?}", e);
+            return ApiResponse::new(
+                None,
+                Some("Error Creating Bot".to_string()),
+                Some(StatusCode::INTERNAL_SERVER_ERROR),
+            );
+        }
+    }
 
 
     // ** Initiate Bot END
