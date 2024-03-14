@@ -106,7 +106,7 @@ pub async fn login_twitch(
         }
     };
 
-    initiate_twitch_bot(twitch_creds.access_token.clone(), user_data.twitch_id.clone());
+    initiate_twitch_bot(twitch_creds.access_token.clone(), user_data.twitch_login.clone());
 
 
     let jwt_token = match init_and_get_jwt(twitch_creds.access_token, &user_data).await {
@@ -172,7 +172,6 @@ async fn retrieve_twitch_data(
     }
 }
 
-// Start Bot
 async fn get_and_set_user_to_db(
     data: TwitchUserData,
     pool: &PgPool,
