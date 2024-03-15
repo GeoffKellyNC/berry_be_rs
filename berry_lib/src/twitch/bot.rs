@@ -3,6 +3,7 @@ use super::commands::CommandHandler;
 use super::twitch_api::{TwitchAPI, TwitchMessage, TwitchError};
 use std::io::ErrorKind;
 use super::commands::CustomCommand;
+use crate::openai;
 
 
 pub struct Bot<'a> {
@@ -26,11 +27,11 @@ impl<'a> Bot<'a> {
 
     // ...
     
-    pub fn run(&mut self) -> Result<(), TwitchError> {
+    pub async fn run(&mut self) -> Result<(), TwitchError> {
         self.api.connect()?;
         loop {
             match self.api.read_message() {
-                Ok(Some(message)) => self.handle_message(&message),
+                Ok(Some(message)) => self.handle_message(&message).await,
                 Ok(None) => {}
                 Err(TwitchError::IOError(ref e)) if e.kind() == ErrorKind::WouldBlock => {
                     std::thread::sleep(std::time::Duration::from_millis(500));
@@ -40,12 +41,29 @@ impl<'a> Bot<'a> {
         }
     }
 
-    fn handle_message(&mut self, message: &TwitchMessage) {
-        println!("Handling message: {}", message.text); // !REMOVE
-        if let Some(command) = self.command_handler.get_command(&message.text) {
-            let response = command.execute(&message);
-            if let Err(e) = self.api.send_message(&response) {
-                eprintln!("Error sending message: {:?}", e);
+   async fn handle_message(&mut self, message: &TwitchMessage) {
+
+        println!("Handling message: {}", &message.text); // !REMOVE
+
+        let moderation = openai::moderation::OpenAiApiModeration::new(&message.text);
+
+        match moderation.handle_input_check().await {
+            Ok(res) => {
+
+
+                if let Some(command) = self.command_handler.get_command(&message.text) {
+
+                    let response = command.execute(&message);
+        
+                    if let Err(e) = self.api.send_message(&response) {
+                        
+                        eprintln!("Error sending message: {:?}", e);
+                    }
+                }
+ 
+            }
+            Err(e) => {
+                eprintln!("Error Handling Moderation: {e}");
             }
         }
     }

@@ -1,6 +1,6 @@
 use super::twitch_api::TwitchMessage;
 
-pub trait Command {
+pub trait Command: Send {
     fn execute(&self, message: &TwitchMessage) -> String;
     fn get_name(&self) -> String;
 }

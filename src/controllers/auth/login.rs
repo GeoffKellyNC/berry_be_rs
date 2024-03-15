@@ -40,16 +40,12 @@ pub async fn login_twitch(
     reqwest_client: web::Data<Client>,
 ) -> ApiResponse<LoginApiRes> {
     
-    println!("{}", "Login Request Received!".green()); // !REMOVE
-
     let res_data = data.into_inner();
 
     let code = res_data.code;
 
-    println!("Code: {:?}", code.blue()); // !REMOVE
 
     if code.is_empty() {
-        println!("Code is empty"); // !REMOVE
         return ApiResponse::new(
             None,
             Some("Code is required".to_string()),
@@ -121,8 +117,6 @@ pub async fn login_twitch(
     };
 
 
-    println!("{}", "Login Request Completed!".green()); // !REMOVE
-    println!("{:?}", full_response); // !REMOVE
     ApiResponse::new(Some(full_response), None, Some(StatusCode::OK))
 }
 
@@ -133,7 +127,7 @@ fn initiate_twitch_bot(token: String, channel: String) {
         match Bot::new(&token, &channel) {
             Ok(mut bot) => {
                 println!("Bot Created!"); // !REMOVE
-                if let Err(e) = bot.run() {
+                if let Err(e) = bot.run().await {
                     eprintln!("Error running bot: {:?}", e);
                 }
             }
