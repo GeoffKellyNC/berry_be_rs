@@ -7,8 +7,8 @@ use crate::openai;
 
 
 pub struct Bot<'a> {
-    api: TwitchAPI<'a>,
-    command_handler: CommandHandler,
+    pub api: TwitchAPI<'a>,
+    pub command_handler: CommandHandler,
 }
 
 impl<'a> Bot<'a> {

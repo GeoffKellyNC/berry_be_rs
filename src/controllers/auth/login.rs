@@ -18,10 +18,11 @@ use berry_lib::twitch::{
 use colored::*;
 use reqwest::Client;
 use sqlx::PgPool;
-use berry_lib::twitch::bot_manager::BotManager;
+
+use berry_lib::twitch::twitch_service::TwitchService;
 
 lazy_static::lazy_static! {
-    static ref BOT_MANAGER: std::sync::Mutex<BotManager> = std::sync::Mutex::new(BotManager::new());
+    static ref TWITCH_SERVICE: std::sync::Mutex<TwitchService> = std::sync::Mutex::new(TwitchService::new());
 }
 
 #[derive(serde::Deserialize)]
@@ -127,8 +128,8 @@ pub async fn login_twitch(
 // ** MAIN LOGIN FUNCTION END **
 
 async fn initiate_twitch_bot(token: String, channel: String) {
-    let mut bot_manager = BOT_MANAGER.lock().unwrap();
-    bot_manager.connect_bot(token, channel).await;
+    let mut twitch_service = TWITCH_SERVICE.lock().unwrap();
+    twitch_service.connect_user(token, channel);
 }
 // Retrieve Twitch Creds
 

@@ -3,6 +3,7 @@ use actix_web::{http::header, middleware::Logger, web, App, HttpServer};
 use dotenv::dotenv;
 use reqwest::Client;
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
+use berry_lib::twitch::twitch_service::TwitchService;
 
 pub mod controllers;
 pub mod models;
@@ -59,7 +60,11 @@ async fn main() -> std::io::Result<()> {
         }
     };
 
+    let mut twitch_service = TwitchService::new();
 
+    tokio::spawn(async move {
+        twitch_service.run().await;
+    });
 
 
 
