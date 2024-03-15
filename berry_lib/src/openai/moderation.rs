@@ -163,7 +163,7 @@ impl OpenAiApiModeration {
             input: self.input.clone(),
         };
     
-        let response = client
+        let response = client 
             .post(endpoint)
             .header("Content-Type", "application/json")
             .header("Authorization", format!("Bearer {}", self.api_key))
