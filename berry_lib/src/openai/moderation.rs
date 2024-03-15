@@ -75,16 +75,16 @@ pub struct ModerationCategories {
     #[serde(rename = "sexual/minors")]
     pub sexual_minors: bool,
 
-    pubviolence: bool,
+    pub violence: bool,
 
     #[serde(rename = "violence/graphic")]
     pub violence_graphic: bool,
 }
 
 #[derive(Debug, Deserialize)]
-struct ModerationScores {
+pub struct ModerationScores {
 
-    harassment: f64,
+    pub harassment: f64,
 
     #[serde(rename = "harassment/threatening")]
     pub harassment_threatening: f64,

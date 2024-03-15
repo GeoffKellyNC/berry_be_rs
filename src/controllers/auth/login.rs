@@ -18,7 +18,11 @@ use berry_lib::twitch::{
 use colored::*;
 use reqwest::Client;
 use sqlx::PgPool;
-use berry_lib::twitch::bot::Bot;
+use berry_lib::twitch::bot_manager::BotManager;
+
+lazy_static::lazy_static! {
+    static ref BOT_MANAGER: std::sync::Mutex<BotManager> = std::sync::Mutex::new(BotManager::new());
+}
 
 #[derive(serde::Deserialize)]
 pub struct LoginResponse {
@@ -102,7 +106,7 @@ pub async fn login_twitch(
         }
     };
 
-    initiate_twitch_bot(twitch_creds.access_token.clone(), user_data.twitch_login.clone());
+    initiate_twitch_bot(twitch_creds.access_token.clone(), user_data.twitch_login.clone()).await;
 
 
     let jwt_token = match init_and_get_jwt(twitch_creds.access_token, &user_data).await {
@@ -122,22 +126,10 @@ pub async fn login_twitch(
 
 // ** MAIN LOGIN FUNCTION END **
 
-fn initiate_twitch_bot(token: String, channel: String) {
-    tokio::spawn(async move {
-        match Bot::new(&token, &channel) {
-            Ok(mut bot) => {
-                println!("Bot Created!"); // !REMOVE
-                if let Err(e) = bot.run().await {
-                    eprintln!("Error running bot: {:?}", e);
-                }
-            }
-            Err(e) => {
-                eprintln!("Error creating bot: {:?}", e);
-            }
-        }
-    });
+async fn initiate_twitch_bot(token: String, channel: String) {
+    let mut bot_manager = BOT_MANAGER.lock().unwrap();
+    bot_manager.connect_bot(token, channel).await;
 }
-
 // Retrieve Twitch Creds
 
 async fn retrieve_twitch_creds(

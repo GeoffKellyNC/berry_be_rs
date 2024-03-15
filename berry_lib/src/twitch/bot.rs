@@ -24,8 +24,6 @@ impl<'a> Bot<'a> {
         Ok(Bot { api, command_handler })
     }
 
-
-    // ...
     
     pub async fn run(&mut self) -> Result<(), TwitchError> {
         self.api.connect()?;
@@ -49,7 +47,8 @@ impl<'a> Bot<'a> {
 
         match moderation.handle_input_check().await {
             Ok(res) => {
-
+                
+                println!("Moderation Response: {:?}", res); // !REMOVE
 
                 if let Some(command) = self.command_handler.get_command(&message.text) {
 
