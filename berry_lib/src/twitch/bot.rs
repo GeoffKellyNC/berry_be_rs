@@ -1,10 +1,12 @@
+use colored::Colorize;
+use crate::openai::moderation::FlaggedMessage;
+
 // bot.rs
 use super::commands::CommandHandler;
 use super::twitch_api::{TwitchAPI, TwitchMessage, TwitchError};
 use std::io::ErrorKind;
 use super::commands::CustomCommand;
 use crate::openai;
-
 
 pub struct Bot<'a> {
     api: TwitchAPI<'a>,
@@ -50,6 +52,42 @@ impl<'a> Bot<'a> {
         match moderation.handle_input_check().await {
             Ok(res) => {
 
+
+                let is_flagged = res.results[0].flagged;
+                let categories = &res.results[0].categories;
+                let scores = &res.results[0].category_scores;
+                
+
+                if is_flagged {
+
+
+                    println!("{}", "Message is FLAGGED".bright_red().bold());
+                    let true_fields = categories.iterate_and_filter_true();
+
+                    println!("{}: {:?}", "True Fields".bright_yellow().bold(), true_fields);
+                    
+                    // get first element in true_fields vector
+                    let offence = match true_fields.first() {
+                        Some(offence) => offence,
+                        None => "No Offence Found",
+                    };
+
+                    let offender_name = &message.sender;
+                    let score = scores.get_score(&offence);
+                    let user_text = &message.text;
+
+
+                    println!("{} {}: {} {} {} {}", "OFFENCE".red().bold().underline(), offender_name, offence, score, "USER TEXT".bright_purple().bold().underline(), user_text);
+
+
+                    let flagged_message = FlaggedMessage::new(&offender_name, "1234TEST", &user_text, offence, score);
+
+                    moderation.moderate_input(flagged_message);
+
+                    return
+                }
+
+                println!("{}", "Message Passed Moderation".bright_green().bold().underline());
 
                 if let Some(command) = self.command_handler.get_command(&message.text) {
 

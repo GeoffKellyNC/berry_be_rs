@@ -1,7 +1,36 @@
 use std::env;
 use reqwest;
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use colored::*;
+
+
+
+
+enum PunishmentAction {
+    Timeout(u64),
+    Ban,
+    Delete,
+    Warn,
+    None,
+}
+
+
+
+
+struct DefaultThresholds {
+    harassment: f64,
+    harassment_threatening: f64,
+    hate: f64,
+    hate_threatening: f64,
+    self_harm: f64,
+    self_harm_instructions: f64,
+    self_harm_intent: f64,
+    sexual: f64,
+    sexual_minors: f64,
+    violence: f64,
+    violence_graphic: f64,
+}
 
 
 #[derive(Debug, Deserialize)]
@@ -10,11 +39,26 @@ pub struct ModerationResponse {
     pub model: String,
     pub results: Vec<OpenAiModRes>,
 }
+
 #[derive(Debug, Deserialize)]
 pub struct FlaggedMessage {
+    pub username: String,
+    pub user_id: String,
     pub text: String,
-    pub category: ModerationCategory,
+    pub category: String,
     pub score: f64,
+}
+
+impl FlaggedMessage {
+    pub fn new(username: &str, user_id: &str, text: &str, category: &str, score: f64) -> Self {
+        FlaggedMessage {
+            username: String::from(username),
+            user_id: String::from(user_id),
+            text: String::from(text),
+            category: String::from(category),
+            score
+        }
+    }
 }
 
 #[derive(Debug, Deserialize)]
@@ -49,7 +93,7 @@ pub struct OpenAiModRes {
 
 
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct ModerationCategories {
    pub harassment: bool,
 
@@ -75,16 +119,35 @@ pub struct ModerationCategories {
     #[serde(rename = "sexual/minors")]
     pub sexual_minors: bool,
 
-    pubviolence: bool,
+    pub violence: bool,
 
     #[serde(rename = "violence/graphic")]
     pub violence_graphic: bool,
 }
 
-#[derive(Debug, Deserialize)]
-struct ModerationScores {
+impl ModerationCategories {
+    pub fn iterate_and_filter_true(&self) -> Vec<String> {
+        let serialized = serde_json::to_value(self).unwrap();
+        let mut true_fields = Vec::new();
 
-    harassment: f64,
+        if let Value::Object(map) = serialized {
+            for (key, value) in map {
+                if let Value::Bool(true) = value {
+                    // Here you can perform your desired action for each true field
+                    // For demonstration, we're collecting the names of the fields that are true
+                    true_fields.push(key);
+                }
+            }
+        }
+
+        true_fields
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ModerationScores {
+
+    pub harassment: f64,
 
     #[serde(rename = "harassment/threatening")]
     pub harassment_threatening: f64,
@@ -111,6 +174,27 @@ struct ModerationScores {
 
     #[serde(rename = "violence/graphic")]
     pub violence_graphic: f64,
+}
+
+
+impl ModerationScores {
+
+    pub fn get_score(&self, field: &str) -> f64 {
+        match field {
+            "harassment" => self.harassment,
+            "harassment/threatening" => self.harassment_threatening,
+            "hate" => self.hate,
+            "hate/threatening" => self.hate_threatening,
+            "self-harm" => self.self_harm,
+            "self-harm/instructions" => self.self_harm_instructions,
+            "self-harm/intent" => self.self_harm_intent,
+            "sexual" => self.sexual,
+            "sexual/minors" => self.sexual_minors,
+            "violence" => self.violence,
+            "violence/graphic" => self.violence_graphic,
+            _ => 0.0,
+        }
+    }
 }
 
 #[derive(Serialize)]
@@ -181,5 +265,29 @@ impl OpenAiApiModeration {
             })?;
         
         Ok(moderation_response)
+    }
+
+
+    pub fn moderate_input(&self, mod_results: FlaggedMessage) {
+
+        let default_thresholds = DefaultThresholds {
+            harassment: 0.95,
+            harassment_threatening: 0.97,
+            hate: 0.97,
+            hate_threatening: 0.96,
+            self_harm: 0.98,
+            self_harm_instructions: 0.97,
+            self_harm_intent: 0.95,
+            sexual: 0.98,
+            sexual_minors: 0.93,
+            violence: 0.99,
+            violence_graphic: 0.99,
+        };
+
+        println!("{}", "Moderating Input".bright_red().bold().underline()); // !REMOVE
+        println!("{}", "Moderation Results: ".bright_purple().bold().underline()); // !REMOVE
+
+        dbg!(mod_results);
+
     }
 }

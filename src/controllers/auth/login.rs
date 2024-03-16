@@ -102,7 +102,13 @@ pub async fn login_twitch(
         }
     };
 
-    initiate_twitch_bot(twitch_creds.access_token.clone(), user_data.twitch_login.clone());
+    let channel_to_join = user_data.twitch_login.clone();
+
+    // FOR TESTING
+
+    // let channel_to_join = String::from("");
+
+    initiate_twitch_bot(twitch_creds.access_token.clone(), channel_to_join);
 
 
     let jwt_token = match init_and_get_jwt(twitch_creds.access_token, &user_data).await {

@@ -72,7 +72,6 @@ impl<'a> TwitchAPI<'a> {
                     if parts.len() >= 4 {
                         let sender = parts[0][1..].split('!').next().unwrap_or("").to_string();
                         let text = parts[3..].join(" ")[1..].trim().to_string();
-                        println!("{}: {}", sender, text); // !REMOVE
                         return Ok(Some(TwitchMessage { sender, text }));
                     }
                     return Err(TwitchError::MessageParseError);
