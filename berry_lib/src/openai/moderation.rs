@@ -133,8 +133,6 @@ impl ModerationCategories {
         if let Value::Object(map) = serialized {
             for (key, value) in map {
                 if let Value::Bool(true) = value {
-                    // Here you can perform your desired action for each true field
-                    // For demonstration, we're collecting the names of the fields that are true
                     true_fields.push(key);
                 }
             }
