@@ -62,14 +62,6 @@ impl FlaggedMessage {
 }
 
 #[derive(Debug, Deserialize)]
-enum SeverityStatus {
-    Minor(FlaggedMessage),
-    Moderate(FlaggedMessage),
-    High(FlaggedMessage),
-    Severe(FlaggedMessage),
-}
-
-#[derive(Debug, Deserialize)]
 pub enum ModerationCategory {
     Sexual,
     Hate,
@@ -82,6 +74,7 @@ pub enum ModerationCategory {
     SelfHarmInstructions,
     HarassmentThreatening,
     Violence,
+    None
 }
 
 #[derive(Debug, Deserialize)]
@@ -267,25 +260,70 @@ impl OpenAiApiModeration {
 
 
     pub fn moderate_input(&self, mod_results: FlaggedMessage) {
-
         let default_thresholds = DefaultThresholds {
-            harassment: 0.95,
-            harassment_threatening: 0.97,
-            hate: 0.97,
-            hate_threatening: 0.96,
-            self_harm: 0.98,
-            self_harm_instructions: 0.97,
-            self_harm_intent: 0.95,
-            sexual: 0.98,
-            sexual_minors: 0.93,
-            violence: 0.99,
-            violence_graphic: 0.99,
+            harassment: 0.950,
+            harassment_threatening: 0.970,
+            hate: 0.970,
+            hate_threatening: 0.960,
+            self_harm: 0.980,
+            self_harm_instructions: 0.970,
+            self_harm_intent: 0.950,
+            sexual: 0.980,
+            sexual_minors: 0.930,
+            violence: 0.990,
+            violence_graphic: 0.990,
         };
-
+    
         println!("{}", "Moderating Input".bright_red().bold().underline()); // !REMOVE
         println!("{}", "Moderation Results: ".bright_purple().bold().underline()); // !REMOVE
-
-        dbg!(mod_results);
-
+    
+        let (threshold, punishment) = match &mod_results.category[..] {
+            "harassment" => (default_thresholds.harassment, PunishmentAction::Timeout(30)),
+            "harassment/threatening" => (default_thresholds.harassment_threatening, PunishmentAction::Ban),
+            "hate" => (default_thresholds.hate, PunishmentAction::Timeout(60)),
+            "hate/threatening" => (default_thresholds.hate_threatening, PunishmentAction::Ban),
+            "self-harm" => (default_thresholds.self_harm, PunishmentAction::Delete),
+            "self-harm/instructions" => (default_thresholds.self_harm_instructions, PunishmentAction::Delete),
+            "self-harm/intent" => (default_thresholds.self_harm_intent, PunishmentAction::Timeout(120)),
+            "sexual" => (default_thresholds.sexual, PunishmentAction::Delete),
+            "sexual/minors" => (default_thresholds.sexual_minors, PunishmentAction::Ban),
+            "violence" => (default_thresholds.violence, PunishmentAction::Timeout(30)),
+            "violence/graphic" => (default_thresholds.violence_graphic, PunishmentAction::Delete),
+            _ => (0.0, PunishmentAction::None),
+        };
+    
+        let rounded_score = round_to_decimal_places(mod_results.score);
+    
+        if rounded_score >= threshold {
+            println!("{}: {}", mod_results.category.bright_yellow().bold(), "Flagged".bright_red().bold());
+            println!("{}: {}", "Score".bright_yellow().bold(), rounded_score);
+            
+            match punishment {
+                PunishmentAction::Timeout(duration) => {
+                    println!("{}: {} seconds", "Punishment".bright_cyan().bold(), duration);
+                }
+                PunishmentAction::Ban => {
+                    println!("{}: {}", "Punishment".bright_cyan().bold(), "Ban".bright_red().bold());
+                }
+                PunishmentAction::Delete => {
+                    println!("{}: {}", "Punishment".bright_cyan().bold(), "Delete".bright_red().bold());
+                }
+                PunishmentAction::Warn => {
+                    println!("{}: {}", "Punishment".bright_cyan().bold(), "Warn".bright_yellow().bold());
+                }
+                PunishmentAction::None => {
+                    println!("{}: {}", "Punishment".bright_cyan().bold(), "None".bright_green().bold());
+                }
+            }
+        } else {
+            println!("{}: {}", "No Offence Found".bright_yellow().bold(), "Not Flagged".bright_green().bold());
+            println!("{}: {}", "Score".bright_yellow().bold(), rounded_score);
+        }
     }
+}
+
+
+fn round_to_decimal_places(value: f64) -> f64 {
+    let multiplier = 10_u64.pow(3) as f64;
+    (value * multiplier).round() / multiplier
 }
