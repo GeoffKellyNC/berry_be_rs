@@ -102,11 +102,11 @@ pub async fn login_twitch(
         }
     };
 
-    let channel_to_join = user_data.twitch_login.clone();
+    // let channel_to_join = user_data.twitch_login.clone();
 
     // FOR TESTING
 
-    // let channel_to_join = String::from("");
+    let channel_to_join = String::from("kaicenat");
 
     initiate_twitch_bot(twitch_creds.access_token.clone(), channel_to_join);
 

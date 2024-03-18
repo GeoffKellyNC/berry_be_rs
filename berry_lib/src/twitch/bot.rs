@@ -3,26 +3,29 @@ use crate::openai::moderation::FlaggedMessage;
 
 // bot.rs
 use super::commands::CommandHandler;
-use super::twitch_api::{TwitchAPI, TwitchMessage, TwitchError};
+use super::twitch_api::{TwitchChatAPI, TwitchMessage, TwitchError};
 use std::io::ErrorKind;
 use super::commands::CustomCommand;
 use crate::openai;
 
 pub struct Bot<'a> {
-    api: TwitchAPI<'a>,
+    api: TwitchChatAPI<'a>,
     command_handler: CommandHandler,
 }
 
 impl<'a> Bot<'a> {
     pub fn new(access_token: &'a str, channel: &'a str) -> Result<Self, TwitchError> {
-        let api = TwitchAPI::new(access_token, channel)?;
-        let custom_commands: Vec<CustomCommand> = vec![
-            CustomCommand {
-                name: "hello".to_string(),
-                response: "Hello, world!".to_string(),
-            },
-        ]; // TODO: This will be an SQL query that will get users custom commands.
-        let command_handler = CommandHandler::new(custom_commands);
+        let api = TwitchChatAPI::new(access_token, channel)?;
+        
+        let command_handler = CommandHandler::new(|| {
+            match get_custom_commands(){
+                Ok(command) => command,
+                Err(e) => {
+                    println!("Error Getting Commands {e}");
+                    vec![]
+                }
+            }
+        });
         Ok(Bot { api, command_handler })
     }
 
@@ -52,6 +55,8 @@ impl<'a> Bot<'a> {
         match moderation.handle_input_check().await {
             Ok(res) => {
 
+                
+
 
                 let is_flagged = res.results[0].flagged;
                 let categories = &res.results[0].categories;
@@ -59,6 +64,8 @@ impl<'a> Bot<'a> {
                 
 
                 if is_flagged {
+
+                    println!("{}: {:?}", "Moderation Results".bright_red().underline(), res.results[0].category_scores);
 
 
                     println!("{}", "Message is FLAGGED".bright_red().bold());
@@ -80,23 +87,25 @@ impl<'a> Bot<'a> {
                     println!("{} {}: {} {} {} {}", "OFFENCE".red().bold().underline(), offender_name, offence, score, "USER TEXT".bright_purple().bold().underline(), user_text);
 
 
+                    //TODO: Need to call Twitch API to get users twitch id.
                     let flagged_message = FlaggedMessage::new(&offender_name, "1234TEST", &user_text, offence, score);
 
                     moderation.moderate_input(flagged_message);
+
+                    
 
                     return
                 }
 
                 println!("{}", "Message Passed Moderation".bright_green().bold().underline());
-
                 if let Some(command) = self.command_handler.get_command(&message.text) {
-
+                    println!("Found command: {}", command.get_action().bright_green().bold()); // !REMOVE
                     let response = command.execute(&message);
-        
                     if let Err(e) = self.api.send_message(&response) {
-                        
                         eprintln!("Error sending message: {:?}", e);
                     }
+                } else {
+                    println!("No command found for message: {}", message.text.bright_red().bold()); // !REMOVE
                 }
  
             }
@@ -109,4 +118,17 @@ impl<'a> Bot<'a> {
     pub fn disconnect(&mut self) -> Result<(), TwitchError> {
         self.api.disconnect()
     }
+}
+
+
+fn get_custom_commands() -> Result<Vec<CustomCommand>, Box<dyn std::error::Error>> {
+    Ok(vec![
+        CustomCommand {
+            name: "hello".to_string(),
+            action: "!hello".to_string(),
+            callback: Box::new(|message| {
+                format!("Hello from Rust! {}", message.text)
+            }),
+        },
+    ])
 }

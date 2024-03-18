@@ -29,21 +29,25 @@ impl From<std::io::Error> for TwitchError {
     }
 }
 
-pub struct TwitchAPI<'a> {
+pub struct TwitchChatAPI<'a> {
     access_token: &'a str,
     channel: &'a str,
     stream: Option<TcpStream>,
     reader: Option<BufReader<TcpStream>>,
 }
 
-impl<'a> TwitchAPI<'a> {
+impl<'a> TwitchChatAPI<'a> {
     pub fn new(access_token: &'a str, channel: &'a str) -> Result<Self, TwitchError> {
-        Ok(TwitchAPI {
+        Ok(TwitchChatAPI {
             access_token,
             channel,
             stream: None,
             reader: None,
         })
+    }
+
+    pub fn get_access_token(&self) -> String {
+        self.access_token.to_string()
     }
 
     pub fn connect(&mut self) -> Result<(), TwitchError> {

@@ -61,21 +61,6 @@ impl FlaggedMessage {
     }
 }
 
-#[derive(Debug, Deserialize)]
-pub enum ModerationCategory {
-    Sexual,
-    Hate,
-    Harassment,
-    SelfHarm,
-    SexualMinors,
-    HateThreatening,
-    ViolenceGraphic,
-    SelfHarmIntent,
-    SelfHarmInstructions,
-    HarassmentThreatening,
-    Violence,
-    None
-}
 
 #[derive(Debug, Deserialize)]
 pub struct OpenAiModRes {
@@ -300,23 +285,39 @@ impl OpenAiApiModeration {
             
             match punishment {
                 PunishmentAction::Timeout(duration) => {
-                    println!("{}: {} seconds", "Punishment".bright_cyan().bold(), duration);
+                    println!("{}: {} {} {}", "Punishment Issues".bright_cyan().bold().underline(),
+                    mod_results.username, mod_results.text.on_bright_green(), mod_results.category.red());
+
+                    println!("{}: {} seconds", "Timeout".bright_cyan().bold(), duration);
                 }
                 PunishmentAction::Ban => {
+                    println!("{}: {} {} {}", "Punishment Issues".bright_cyan().bold().underline(),
+                    mod_results.username, mod_results.text, mod_results.category);
+
                     println!("{}: {}", "Punishment".bright_cyan().bold(), "Ban".bright_red().bold());
                 }
                 PunishmentAction::Delete => {
+                    println!("{}: {} {} {}", "Punishment Issues".bright_cyan().bold().underline(),
+                    mod_results.username, mod_results.text, mod_results.category);
+
                     println!("{}: {}", "Punishment".bright_cyan().bold(), "Delete".bright_red().bold());
                 }
                 PunishmentAction::Warn => {
+                    println!("{}: {} {} {}", "Punishment Issues".bright_cyan().bold().underline(),
+                    mod_results.username, mod_results.text, mod_results.category);
+
                     println!("{}: {}", "Punishment".bright_cyan().bold(), "Warn".bright_yellow().bold());
                 }
                 PunishmentAction::None => {
+                    println!("{}: {} {} {}", "Punishment Issues".bright_cyan().bold().underline(),
+                    mod_results.username, mod_results.text, mod_results.category);
+
                     println!("{}: {}", "Punishment".bright_cyan().bold(), "None".bright_green().bold());
                 }
             }
         } else {
             println!("{}: {}", "No Offence Found".bright_yellow().bold(), "Not Flagged".bright_green().bold());
+
             println!("{}: {}", "Score".bright_yellow().bold(), rounded_score);
         }
     }
