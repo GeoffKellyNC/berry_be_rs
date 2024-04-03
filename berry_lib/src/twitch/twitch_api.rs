@@ -51,7 +51,8 @@ impl<'a> TwitchChatAPI<'a> {
     }
 
     pub fn connect(&mut self) -> Result<(), TwitchError> {
-        let stream = TcpStream::connect("irc.chat.twitch.tv:6667").map_err(|_| TwitchError::ConnectionError)?;
+        let stream = TcpStream::connect("irc.chat.twitch.tv:6667")
+            .map_err(|_| TwitchError::ConnectionError)?;
         stream.set_nonblocking(true)?;
 
         let mut writer = stream.try_clone()?;

@@ -10,6 +10,7 @@ use actix_web::http::StatusCode;
 use actix_web::web;
 use berry_lib::api::api_response::ApiResponse;
 use berry_lib::auth::jwt;
+use berry_lib::twitch::bot::Bot;
 use berry_lib::twitch::twitch_user_data::{TwitchUserData, UserTwitchData};
 use berry_lib::twitch::{
     self,
@@ -17,8 +18,8 @@ use berry_lib::twitch::{
 };
 use colored::*;
 use reqwest::Client;
+use std::error::Error;
 use sqlx::PgPool;
-use berry_lib::twitch::bot::Bot;
 
 #[derive(serde::Deserialize)]
 pub struct LoginResponse {
@@ -39,11 +40,11 @@ pub async fn login_twitch(
     data: web::Json<LoginResponse>,
     reqwest_client: web::Data<Client>,
 ) -> ApiResponse<LoginApiRes> {
-    
     let res_data = data.into_inner();
 
-    let code = res_data.code;
+    let reqwest_client = reqwest_client.get_ref();
 
+    let code = res_data.code;
 
     if code.is_empty() {
         return ApiResponse::new(
@@ -53,7 +54,7 @@ pub async fn login_twitch(
         );
     }
 
-    let twitch_creds = match retrieve_twitch_creds(code, &reqwest_client).await {
+    let twitch_creds = match retrieve_twitch_creds(code, reqwest_client).await {
         Ok(data) => data,
         Err(e) => match e {
             TwitchTokenError::JsonError(err) => {
@@ -76,7 +77,7 @@ pub async fn login_twitch(
     };
 
     let twitch_data =
-        match retrieve_twitch_data(twitch_creds.access_token.clone(), &reqwest_client).await {
+        match retrieve_twitch_data(twitch_creds.access_token.clone(), reqwest_client).await {
             Ok(data) => data,
             Err(e) => {
                 eprintln!("Failed to get twitch data: {} ", e);
@@ -110,23 +111,25 @@ pub async fn login_twitch(
 
     initiate_twitch_bot(twitch_creds.access_token.clone(), channel_to_join);
 
-
     let jwt_token = match init_and_get_jwt(twitch_creds.access_token, &user_data).await {
         Ok(token) => token,
         Err(e) => return ApiResponse::new(None, Some(e), Some(StatusCode::INTERNAL_SERVER_ERROR)),
     };
-
 
     let full_response = LoginApiRes {
         token: jwt_token,
         data: user_data,
     };
 
-
     ApiResponse::new(Some(full_response), None, Some(StatusCode::OK))
 }
 
 // ** MAIN LOGIN FUNCTION END **
+// ** ******************************* **
+// ** ******************************* **
+// ** ******************************* **
+// ** ******************************* **
+
 
 fn initiate_twitch_bot(token: String, channel: String) {
     tokio::spawn(async move {
@@ -150,7 +153,7 @@ async fn retrieve_twitch_creds(
     code: String,
     reqwest_client: &Client,
 ) -> Result<TwitchAccessToken, TwitchTokenError> {
-    let twitch_creds = twitch_access_token::get_twitch_access_token(code, &reqwest_client).await;
+    let twitch_creds = twitch_access_token::get_twitch_access_token(code, reqwest_client).await;
 
     match twitch_creds {
         Ok(data) => Ok(data),
@@ -163,8 +166,8 @@ async fn retrieve_twitch_data(
     token: String,
     reqwest_client: &Client,
 ) -> Result<Vec<TwitchUserData>, Box<dyn std::error::Error>> {
-    let twitch_data_raw =
-        twitch::twitch_user_data::get_user_from_twitch(&token, &reqwest_client).await;
+    let twitch_data_raw: Result<Vec<TwitchUserData>, Box<dyn Error>> =
+        twitch::twitch_user_data::get_user_from_twitch(&token, reqwest_client).await;
 
     match twitch_data_raw {
         Ok(data) => Ok(data),

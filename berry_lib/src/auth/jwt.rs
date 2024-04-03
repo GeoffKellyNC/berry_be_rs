@@ -79,4 +79,3 @@ impl JwtConfig {
         now as usize + (days * 24 * 60 * 60)
     }
 }
-

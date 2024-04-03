@@ -1,11 +1,8 @@
-use std::env;
+use colored::*;
 use reqwest;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use colored::*;
-
-
-
+use std::env;
 
 enum PunishmentAction {
     Timeout(u64),
@@ -14,9 +11,6 @@ enum PunishmentAction {
     Warn,
     None,
 }
-
-
-
 
 struct DefaultThresholds {
     harassment: f64,
@@ -32,10 +26,9 @@ struct DefaultThresholds {
     violence_graphic: f64,
 }
 
-
 #[derive(Debug, Deserialize)]
 pub struct ModerationResponse {
-   pub  id: String,
+    pub id: String,
     pub model: String,
     pub results: Vec<OpenAiModRes>,
 }
@@ -56,11 +49,10 @@ impl FlaggedMessage {
             user_id: String::from(user_id),
             text: String::from(text),
             category: String::from(category),
-            score
+            score,
         }
     }
 }
-
 
 #[derive(Debug, Deserialize)]
 pub struct OpenAiModRes {
@@ -69,11 +61,9 @@ pub struct OpenAiModRes {
     pub category_scores: ModerationScores,
 }
 
-
-
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ModerationCategories {
-   pub harassment: bool,
+    pub harassment: bool,
 
     #[serde(rename = "harassment/threatening")]
     pub harassment_threatening: bool,
@@ -81,7 +71,7 @@ pub struct ModerationCategories {
     pub hate: bool,
 
     #[serde(rename = "hate/threatening")]
-    pub  hate_threatening: bool,
+    pub hate_threatening: bool,
 
     #[serde(rename = "self-harm")]
     pub self_harm: bool,
@@ -122,7 +112,6 @@ impl ModerationCategories {
 
 #[derive(Debug, Deserialize)]
 pub struct ModerationScores {
-
     pub harassment: f64,
 
     #[serde(rename = "harassment/threatening")]
@@ -131,7 +120,7 @@ pub struct ModerationScores {
     pub hate: f64,
 
     #[serde(rename = "hate/threatening")]
-    pub  hate_threatening: f64,
+    pub hate_threatening: f64,
 
     #[serde(rename = "self-harm")]
     pub self_harm: f64,
@@ -152,9 +141,7 @@ pub struct ModerationScores {
     pub violence_graphic: f64,
 }
 
-
 impl ModerationScores {
-
     pub fn get_score(&self, field: &str) -> f64 {
         match field {
             "harassment" => self.harassment,
@@ -213,17 +200,15 @@ impl OpenAiApiModeration {
         }
     }
 
-
     pub async fn handle_input_check(&self) -> Result<ModerationResponse, ModerationError> {
-        println!("{}", "Handling Input Check".green()); // !REMOVE
         let client = reqwest::Client::new();
         let endpoint = "https://api.openai.com/v1/moderations";
-    
+
         let request_body = ModerationRequest {
             input: self.input.clone(),
         };
-    
-        let response = client 
+
+        let response = client
             .post(endpoint)
             .header("Content-Type", "application/json")
             .header("Authorization", format!("Bearer {}", self.api_key))
@@ -231,98 +216,162 @@ impl OpenAiApiModeration {
             .send()
             .await
             .map_err(|_| ModerationError::ConnectionError)?;
-    
-        let moderation_response: ModerationResponse = response
-            .json()
-            .await
-            .map_err(|e| {
-                println!("{} {}", "Error Parsing Response".red(), e); // !REMOVE
-                ModerationError::ApiError
-            })?;
-        
+
+        let moderation_response: ModerationResponse = response.json().await.map_err(|e| {
+            println!("{} {}", "Error Parsing Response".red(), e); // !REMOVE
+            ModerationError::ApiError
+        })?;
+
         Ok(moderation_response)
     }
-
 
     pub fn moderate_input(&self, mod_results: FlaggedMessage) {
         let default_thresholds = DefaultThresholds {
             harassment: 0.950,
             harassment_threatening: 0.970,
-            hate: 0.970,
+            hate: 0.55,
             hate_threatening: 0.960,
             self_harm: 0.980,
             self_harm_instructions: 0.970,
             self_harm_intent: 0.950,
-            sexual: 0.980,
-            sexual_minors: 0.930,
-            violence: 0.990,
+            sexual: 0.88,
+            sexual_minors: 0.50,
+            violence: 0.95,
             violence_graphic: 0.990,
         };
-    
+
         println!("{}", "Moderating Input".bright_red().bold().underline()); // !REMOVE
-        println!("{}", "Moderation Results: ".bright_purple().bold().underline()); // !REMOVE
-    
+        println!(
+            "{}",
+            "Moderation Results: ".bright_purple().bold().underline()
+        ); // !REMOVE
+
         let (threshold, punishment) = match &mod_results.category[..] {
-            "harassment" => (default_thresholds.harassment, PunishmentAction::Timeout(30)),
-            "harassment/threatening" => (default_thresholds.harassment_threatening, PunishmentAction::Ban),
+            "harassment" => (default_thresholds.harassment, PunishmentAction::Warn),
+            "harassment/threatening" => (
+                default_thresholds.harassment_threatening,
+                PunishmentAction::Ban,
+            ),
             "hate" => (default_thresholds.hate, PunishmentAction::Timeout(60)),
             "hate/threatening" => (default_thresholds.hate_threatening, PunishmentAction::Ban),
             "self-harm" => (default_thresholds.self_harm, PunishmentAction::Delete),
-            "self-harm/instructions" => (default_thresholds.self_harm_instructions, PunishmentAction::Delete),
-            "self-harm/intent" => (default_thresholds.self_harm_intent, PunishmentAction::Timeout(120)),
+            "self-harm/instructions" => (
+                default_thresholds.self_harm_instructions,
+                PunishmentAction::Delete,
+            ),
+            "self-harm/intent" => (
+                default_thresholds.self_harm_intent,
+                PunishmentAction::Timeout(120),
+            ),
             "sexual" => (default_thresholds.sexual, PunishmentAction::Delete),
             "sexual/minors" => (default_thresholds.sexual_minors, PunishmentAction::Ban),
             "violence" => (default_thresholds.violence, PunishmentAction::Timeout(30)),
-            "violence/graphic" => (default_thresholds.violence_graphic, PunishmentAction::Delete),
+            "violence/graphic" => (
+                default_thresholds.violence_graphic,
+                PunishmentAction::Delete,
+            ),
             _ => (0.0, PunishmentAction::None),
         };
-    
+
         let rounded_score = round_to_decimal_places(mod_results.score);
-    
+
         if rounded_score >= threshold {
-            println!("{}: {}", mod_results.category.bright_yellow().bold(), "Flagged".bright_red().bold());
+            println!(
+                "{}: {} {} {}",
+                mod_results.category.bright_yellow().bold(),
+                "Flagged".bright_red().bold(),
+                mod_results.username,
+                mod_results.user_id
+            );
             println!("{}: {}", "Score".bright_yellow().bold(), rounded_score);
-            
+
             match punishment {
                 PunishmentAction::Timeout(duration) => {
-                    println!("{}: {} {} {}", "Punishment Issues".bright_cyan().bold().underline(),
-                    mod_results.username, mod_results.text.on_bright_green(), mod_results.category.red());
+                    println!(
+                        "{}: {} {} {}",
+                        "Punishment Issues".bright_cyan().bold().underline(),
+                        mod_results.username,
+                        mod_results.text.on_bright_green(),
+                        mod_results.category.red()
+                    );
 
                     println!("{}: {} seconds", "Timeout".bright_cyan().bold(), duration);
                 }
                 PunishmentAction::Ban => {
-                    println!("{}: {} {} {}", "Punishment Issues".bright_cyan().bold().underline(),
-                    mod_results.username, mod_results.text, mod_results.category);
+                    println!(
+                        "{}: {} {} {}",
+                        "Punishment Issues".bright_cyan().bold().underline(),
+                        mod_results.username,
+                        mod_results.text,
+                        mod_results.category
+                    );
 
-                    println!("{}: {}", "Punishment".bright_cyan().bold(), "Ban".bright_red().bold());
+                    println!(
+                        "{}: {}",
+                        "Punishment".bright_cyan().bold(),
+                        "Ban".bright_red().bold()
+                    );
                 }
                 PunishmentAction::Delete => {
-                    println!("{}: {} {} {}", "Punishment Issues".bright_cyan().bold().underline(),
-                    mod_results.username, mod_results.text, mod_results.category);
+                    println!(
+                        "{}: {} {} {}",
+                        "Punishment Issues".bright_cyan().bold().underline(),
+                        mod_results.username,
+                        mod_results.text,
+                        mod_results.category
+                    );
 
-                    println!("{}: {}", "Punishment".bright_cyan().bold(), "Delete".bright_red().bold());
+                    println!(
+                        "{}: {}",
+                        "Punishment".bright_cyan().bold(),
+                        "Delete".bright_red().bold()
+                    );
                 }
                 PunishmentAction::Warn => {
-                    println!("{}: {} {} {}", "Punishment Issues".bright_cyan().bold().underline(),
-                    mod_results.username, mod_results.text, mod_results.category);
+                    println!(
+                        "{}: {} {} {}",
+                        "Punishment Issues".bright_cyan().bold().underline(),
+                        mod_results.username,
+                        mod_results.text,
+                        mod_results.category
+                    );
 
-                    println!("{}: {}", "Punishment".bright_cyan().bold(), "Warn".bright_yellow().bold());
+                    println!(
+                        "{}: {}",
+                        "Punishment".bright_cyan().bold(),
+                        "Warn".bright_yellow().bold()
+                    );
                 }
                 PunishmentAction::None => {
-                    println!("{}: {} {} {}", "Punishment Issues".bright_cyan().bold().underline(),
-                    mod_results.username, mod_results.text, mod_results.category);
+                    println!(
+                        "{}: {} {} {}",
+                        "Punishment Issues".bright_cyan().bold().underline(),
+                        mod_results.username,
+                        mod_results.text,
+                        mod_results.category
+                    );
 
-                    println!("{}: {}", "Punishment".bright_cyan().bold(), "None".bright_green().bold());
+                    println!(
+                        "{}: {}",
+                        "Punishment".bright_cyan().bold(),
+                        "None".bright_green().bold()
+                    );
                 }
             }
         } else {
-            println!("{}: {}", "No Offence Found".bright_yellow().bold(), "Not Flagged".bright_green().bold());
+            println!(
+                "{}: {}",
+                "No Offence Found".bright_yellow().bold(),
+                "Not Flagged".bright_green().bold()
+            );
 
             println!("{}: {}", "Score".bright_yellow().bold(), rounded_score);
+
+            println!("{}", "=====================================================".bright_yellow().bold());
+            println!("{}", "=====================================================".bright_yellow().bold());
         }
     }
 }
-
 
 fn round_to_decimal_places(value: f64) -> f64 {
     let multiplier = 10_u64.pow(3) as f64;

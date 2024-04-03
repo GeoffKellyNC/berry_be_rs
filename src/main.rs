@@ -59,10 +59,6 @@ async fn main() -> std::io::Result<()> {
         }
     };
 
-
-
-
-
     let server = HttpServer::new(move || {
         let cors = Cors::default()
             .allowed_origin("http://localhost:5173")
@@ -101,5 +97,3 @@ async fn main() -> std::io::Result<()> {
             e
         })
 }
-
-
