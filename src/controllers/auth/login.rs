@@ -107,7 +107,7 @@ pub async fn login_twitch(
 
     // FOR TESTING
 
-    let channel_to_join = String::from("kaicenat");
+    let channel_to_join = String::from("piratesoftware");
 
     initiate_twitch_bot(twitch_creds.access_token.clone(), channel_to_join);
 
