@@ -8,6 +8,7 @@ pub mod controllers;
 pub mod models;
 pub mod routes;
 pub mod services;
+pub mod middleware;
 
 extern crate pretty_env_logger;
 
@@ -76,6 +77,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(cors)
             .wrap(Logger::default())
+            .wrap(middleware::auth_middleware::AuthMiddleware)
             .app_data(web::Data::new(db_pool.clone()))
             .app_data(web::Data::new(reqwest_client.clone()))
             .configure(routes::auth_rotues::init_routes)
