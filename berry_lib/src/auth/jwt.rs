@@ -66,14 +66,24 @@ impl JwtConfig {
     }
 
     pub fn validate_token(&self, token: &str) -> Result<jsonwebtoken::TokenData<Claims>, JwtError> {
-        decode::<Claims>(
+        match decode::<Claims>(
             token,
             &DecodingKey::from_secret(self.secret.as_ref()),
             &Validation::new(self.algorithm),
-        )
-        .map_err(JwtError::TokenValidationError)
+        ) {
+            Ok(token_data) => Ok(token_data),
+            Err(err) => {
+                match err.kind() {
+                    jsonwebtoken::errors::ErrorKind::InvalidToken => Err(JwtError::TokenValidationError(err)),
+                    jsonwebtoken::errors::ErrorKind::InvalidIssuer => Err(JwtError::TokenValidationError(err)),
+                    jsonwebtoken::errors::ErrorKind::InvalidAudience => Err(JwtError::TokenValidationError(err)),
+                    jsonwebtoken::errors::ErrorKind::ExpiredSignature => Err(JwtError::TokenValidationError(err)),
+                    jsonwebtoken::errors::ErrorKind::InvalidAlgorithm => Err(JwtError::TokenValidationError(err)),
+                    _ => Err(JwtError::TokenValidationError(err)),
+                }
+            }
+        }
     }
-
     pub fn generate_exp_time(days: usize) -> usize {
         let now = chrono::Utc::now().timestamp();
         now as usize + (days * 24 * 60 * 60)

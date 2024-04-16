@@ -3,6 +3,7 @@ use actix_web::{http::header, middleware::Logger, web, App, HttpServer};
 use dotenv::dotenv;
 use reqwest::Client;
 use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
+use colored::*;
 
 pub mod controllers;
 pub mod models;
@@ -51,6 +52,21 @@ async fn main() -> std::io::Result<()> {
 
     let db_pool = match handle_db_connection().await {
         Ok(pool) => pool,
+        Err(e) => {
+            println!("Error: {:?}", e);
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "Failed to start server",
+            ));
+        }
+    };
+
+    // START SERVICES:
+    println!("{}", "Starting Services".bright_blue().bold().underline());
+    match services::init_db::db_table_check(&db_pool).await {
+        Ok(()) => {
+            println!("{}", "Database Tables Checked".bright_green());
+        },
         Err(e) => {
             println!("Error: {:?}", e);
             return Err(std::io::Error::new(

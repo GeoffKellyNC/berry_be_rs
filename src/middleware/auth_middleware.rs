@@ -8,6 +8,10 @@ use actix_web::{
 };
 use futures_util::future::LocalBoxFuture;
 
+use berry_lib::auth::jwt::{JwtConfig, JwtAlgorithm};
+
+use colored::*;
+
 pub struct AuthMiddleware;
 
 impl<S, B> Transform<S, ServiceRequest> for AuthMiddleware
@@ -43,91 +47,68 @@ where
     forward_ready!(service);
 
     fn call(&self, req: ServiceRequest) -> Self::Future {
-        // Return 200 OK for preflight requests
-        println!("HEADERS: {:?}", req.headers()); // !REMOVE
-        println!("METHOD: {:?}", req.method()); // !REMOVE
-
-        // Check authentication for other paths
         let auth_result = check_authentication(req.headers().get(AUTHORIZATION), &req);
-
-        println!("AUTH RESULT: {:?}", auth_result); // !REMOVE
 
         let fut = self.service.call(req);
 
         Box::pin(async move {
             match auth_result {
                 Some(true) => {
-                    // If authentication is successful, proceed
-                    println!("AUTHENTICATION SUCCESSFUL"); // !REMOVE
+                    println!("{} {}", "Auth Middleware".green(), "Authentication Passed".bright_green().bold()); // !REMOVE
                     fut.await
                 },
                 _ => {
-                    println!("AUTHENTICATION FAILED"); // !REMOVE
-                    // If authentication fails or no header is present, return 401 Unauthorized
+                    println!("{} {}", "Auth Middleware".green(), "Authentication Failed".bright_red().bold()); // !REMOVE
                     Err(ErrorUnauthorized("Unauthorized"))
-                }
+                },
             }
         })
     }
 }
 
-
-
 fn check_authentication(header_value: Option<&HeaderValue>, req: &ServiceRequest) -> Option<bool> {
-    println!("CHECKING AUTHENTICATION"); // !REMOVE
+    println!("{} {}", "Auth Middleware".green(), "Checking Authentication FN".cyan().bold()); // !REMOVE
 
-    let header_str = header_value?.to_str().ok()?;
+
+    println!("{}, {}", "Auth Middleware".green(), "Checking Whitelisted Routes".cyan().bold()); // !REMOVE
+
+    println!("{}, {:?}", "Request Path".cyan(), req.path()); // !REMOVE
 
     let whitelisted_routes = vec!["/auth/login", "/auth/register"];
 
-    println!("REQUEST PATH: {}", req.path()); // !REMOVE
-
-    println!("WHITELISTED CONTAINS: {}", whitelisted_routes.contains(&req.path())); // !REMOVE
-
     if whitelisted_routes.contains(&req.path()) {
-        println!("WHITELISTED ROUTE: {}", req.path()); // !REMOVE
+        println!("{} {}", "Whitelisted Route".green(), "Skipping Authentication".cyan().bold()); // !REMOVE
         return Some(true);
     }
 
-    let is_valid = validate_token(header_str);
+    let header_str = match header_value {
+        Some(value) => match value.to_str() {
+            Ok(str) => str,
+            Err(err) => {
+                println!("{} {}", "Header Value Error".red(), err);
+                return Some(false);
+            }
+        },
+        None => {
+            println!("{}", "Authorization Header Missing".yellow());
+            return Some(false);
+        }
+    };
 
-    println!("IS VALID: {}", is_valid); // !REMOVE
 
-    Some(is_valid)
-    
-}
+    let jwt_algorithm = JwtAlgorithm::HS256; // Specify the desired algorithm here
 
-fn validate_token(header_str: &str) -> bool {
+    let jwt_config = JwtConfig::new(jwt_algorithm.into());
 
-    println!("VALIDATING TOKEN"); // !REMOVE
+    let validation_result = jwt_config.validate_token(header_str);
 
-    let parts: Vec<&str> = header_str.split_whitespace().collect();
+    println!("{}, {:?}", "Validation Result".green(), validation_result); // !REMOVE
 
-    if parts.len() < 2 {
-        println!("TOKEN VALIDATION FAILED: TO SHORT"); // !REMOVE
-
-        return false;
+    match validation_result {
+        Ok(_) => Some(true),
+        Err(err) => {
+            println!("{} {:?}", "JWT Error".red(), err); // !REMOVE
+            Some(false)
+        }
     }
-
-
-    let bearer = parts[0];
-    let token = parts[1];
-
-
-    if bearer.is_empty() || token.is_empty() {
-        println!("TOKEN VALIDATION FAILED: EMPTY BEARER OR TOKEN"); // !REMOVE
-        return false;
-    }
-
-    let is_valid = check_token(token);
-
-    println!("TOKEN VALIDATION RESULT: {}", is_valid); // !REMOVE
-
-    is_valid
-}
-
-
-fn check_token(token: &str) -> bool {
-    println!("CHECKING TOKEN {}", token); // !REMOVE
-    true
 }
