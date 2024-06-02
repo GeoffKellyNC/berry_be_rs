@@ -1,0 +1,13 @@
+{
+    "harassment": 0.950,
+    "harassment_threatening": 0.970,
+    "hate": 0.55,
+    "hate_threatening": 0.960,
+    "self_harm": 0.980,
+    "self_harm_instructions": 0.970,
+    "self_harm_intent": 0.950,
+    "sexual": 0.88,
+    "sexual_minors": 0.50,
+    "violence": 0.95,
+    "violence_graphic": 0.990
+}

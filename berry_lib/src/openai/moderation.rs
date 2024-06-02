@@ -2,7 +2,11 @@ use colored::*;
 use reqwest;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::env;
+use std::{env, fs};
+
+
+
+
 
 enum PunishmentAction {
     Timeout(u64),
@@ -12,6 +16,7 @@ enum PunishmentAction {
     None,
 }
 
+#[derive(Deserialize)]
 struct DefaultThresholds {
     harassment: f64,
     harassment_threatening: f64,
@@ -225,21 +230,10 @@ impl OpenAiApiModeration {
         Ok(moderation_response)
     }
 
-    pub fn moderate_input(&self, mod_results: FlaggedMessage) {
-        let default_thresholds = DefaultThresholds {
-            harassment: 0.950,
-            harassment_threatening: 0.970,
-            hate: 0.55,
-            hate_threatening: 0.960,
-            self_harm: 0.980,
-            self_harm_instructions: 0.970,
-            self_harm_intent: 0.950,
-            sexual: 0.88,
-            sexual_minors: 0.50,
-            violence: 0.95,
-            violence_graphic: 0.990,
-        };
+    pub fn moderate_input(&self, mod_results: FlaggedMessage) -> Result<(), ModerationError> {
 
+        let default_thresholds = load_default_thresholds()?;
+        
         println!("{}", "Moderating Input".bright_red().bold().underline()); // !REMOVE
         println!(
             "{}",
@@ -296,6 +290,8 @@ impl OpenAiApiModeration {
                     );
 
                     println!("{}: {} seconds", "Timeout".bright_cyan().bold(), duration);
+
+                    ()
                 }
                 PunishmentAction::Ban => {
                     println!(
@@ -311,6 +307,9 @@ impl OpenAiApiModeration {
                         "Punishment".bright_cyan().bold(),
                         "Ban".bright_red().bold()
                     );
+
+                    ()
+
                 }
                 PunishmentAction::Delete => {
                     println!(
@@ -326,6 +325,9 @@ impl OpenAiApiModeration {
                         "Punishment".bright_cyan().bold(),
                         "Delete".bright_red().bold()
                     );
+
+                    ()
+
                 }
                 PunishmentAction::Warn => {
                     println!(
@@ -341,6 +343,9 @@ impl OpenAiApiModeration {
                         "Punishment".bright_cyan().bold(),
                         "Warn".bright_yellow().bold()
                     );
+
+                    ()
+
                 }
                 PunishmentAction::None => {
                     println!(
@@ -356,6 +361,8 @@ impl OpenAiApiModeration {
                         "Punishment".bright_cyan().bold(),
                         "None".bright_green().bold()
                     );
+
+                    ()
                 }
             }
         } else {
@@ -370,10 +377,28 @@ impl OpenAiApiModeration {
             println!("{}", "=====================================================".bright_yellow().bold());
             println!("{}", "=====================================================".bright_yellow().bold());
         }
+
+        Ok(())
     }
 }
 
 fn round_to_decimal_places(value: f64) -> f64 {
     let multiplier = 10_u64.pow(3) as f64;
     (value * multiplier).round() / multiplier
+}
+
+fn load_default_thresholds() -> Result<DefaultThresholds, ModerationError> {
+    let config_data = fs::read_to_string("berry_lib/src/config/moderation_defaults.json")
+        .map_err(|e| {
+            eprintln!("{}", format!("Error reading config file: {}", e).red().bold());
+            ModerationError::IoError(e)
+        })?;
+    
+    let thresholds: DefaultThresholds = serde_json::from_str(&config_data)
+        .map_err(|e| {
+            eprintln!("{}: {}", "Error parsing config file".red().bold(),e);
+            ModerationError::ApiError
+        })?;
+    
+    Ok(thresholds)
 }
